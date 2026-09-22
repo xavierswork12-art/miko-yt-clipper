@@ -7,10 +7,18 @@ st.set_page_config(page_title="Batch Timestamp Clipper", layout="centered")
 TOKEN_FILE = "tokens.json"
 
 def load_data():
-    if os.path.exists(TOKEN_FILE):
+    # Auto-initialize tokens.json if it doesn't exist yet
+    if not os.path.exists(TOKEN_FILE):
+        default_data = {"tokens": {"test_creator": "unused"}}
+        with open(TOKEN_FILE, "w") as f:
+            json.dump(default_data, f, indent=4)
+        return default_data
+
+    try:
         with open(TOKEN_FILE, "r") as f:
             return json.load(f)
-    return {"tokens": {}}
+    except json.JSONDecodeError:
+        return {"tokens": {"test_creator": "unused"}}
 
 def save_data(data):
     with open(TOKEN_FILE, "w") as f:
@@ -37,7 +45,6 @@ with st.sidebar:
     st.subheader("🛠️ Proton Admin Control")
     admin_pass = st.text_input("Secure Passphrase:", type="password")
     
-    # Secure passphrase verification set to Quantum7-Router9-Nexus4-Shield!
     if admin_pass == "Quantum7-Router9-Nexus4-Shield!":
         st.success("Access Granted")
         new_creator = st.text_input("Creator Name / ID:", placeholder="e.g. creator_john")
@@ -69,7 +76,7 @@ if not access_token or access_token not in tokens_db:
 
 if tokens_db[access_token] == "used":
     st.title("🎬 Batch Timestamp Clipper")
-    st.error("🚫 **Invitation Link Expired:** This unique trial link has already been used and is now permanently deactivated. To unlock unlimited native desktop rendering and batch processing, please upgrade to the full $49 desktop version or contact Miko for a renewal.")
+    st.error("🚫 **Invitation Link Expired:** This unique trial link has already been used and is now permanently deactivated. To unlock unlimited native desktop rendering and batch processing, please upgrade to the full $49 desktop version.")
     st.stop()
 
 # Active Trial Interface
