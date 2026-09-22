@@ -1,44 +1,22 @@
 import streamlit as st
-import json
-import os
 
 st.set_page_config(page_title="Batch Timestamp Clipper", layout="centered")
 
-TOKEN_FILE = "tokens.json"
-
-def load_data():
-    # Auto-initialize tokens.json if it doesn't exist yet
-    if not os.path.exists(TOKEN_FILE):
-        default_data = {"tokens": {"test_creator": "unused"}}
-        with open(TOKEN_FILE, "w") as f:
-            json.dump(default_data, f, indent=4)
-        return default_data
-
-    try:
-        with open(TOKEN_FILE, "r") as f:
-            return json.load(f)
-    except json.JSONDecodeError:
-        return {"tokens": {"test_creator": "unused"}}
-
-def save_data(data):
-    with open(TOKEN_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+# Initialize robust token database in Streamlit session memory
+if "tokens_db" not in st.session_state:
+    st.session_state.tokens_db = {
+        "test_creator": "unused",
+        "creator_joe": "unused"
+    }
 
 def burn_token(token_to_burn):
-    data = load_data()
-    if "tokens" in data and token_to_burn in data["tokens"]:
-        data["tokens"][token_to_burn] = "used"
-        save_data(data)
+    if token_to_burn in st.session_state.tokens_db:
+        st.session_state.tokens_db[token_to_burn] = "used"
 
 def create_token(new_token):
-    data = load_data()
-    if "tokens" not in data:
-        data["tokens"] = {}
-    data["tokens"][new_token] = "unused"
-    save_data(data)
+    st.session_state.tokens_db[new_token] = "unused"
 
-data_db = load_data()
-tokens_db = data_db.get("tokens", {})
+tokens_db = st.session_state.tokens_db
 
 # --- SECURE ADMIN PANEL (Passphrase-Protected) ---
 with st.sidebar:
