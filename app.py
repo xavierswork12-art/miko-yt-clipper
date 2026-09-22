@@ -1,22 +1,12 @@
 import streamlit as st
 
-st.set_page_config(page_title="Batch Timestamp Clipper", layout="centered")
+st.set_page_config(page_title="Batch Timestamp Clipper", layout="centered", initial_sidebar_state="expanded")
 
-# Initialize robust token database in Streamlit session memory
+# Initialize robust token database in session memory
 if "tokens_db" not in st.session_state:
     st.session_state.tokens_db = {
-        "test_creator": "unused",
-        "creator_joe": "unused"
+        "test_creator": "unused"
     }
-
-def burn_token(token_to_burn):
-    if token_to_burn in st.session_state.tokens_db:
-        st.session_state.tokens_db[token_to_burn] = "used"
-
-def create_token(new_token):
-    st.session_state.tokens_db[new_token] = "unused"
-
-tokens_db = st.session_state.tokens_db
 
 # --- SECURE ADMIN PANEL (Passphrase-Protected) ---
 with st.sidebar:
@@ -29,7 +19,7 @@ with st.sidebar:
         if st.button("Generate Invite Link"):
             if new_creator:
                 clean_name = new_creator.strip().replace(" ", "_")
-                create_token(clean_name)
+                st.session_state.tokens_db[clean_name] = "unused"
                 base_url = "https://mikoytclipper.streamlit.app"
                 invite_link = f"{base_url}/?access={clean_name}"
                 st.success("Link generated successfully!")
@@ -39,25 +29,30 @@ with st.sidebar:
         
         st.divider()
         st.write("📊 **Token Status List:**")
-        st.json(tokens_db)
+        st.json(st.session_state.tokens_db)
     elif admin_pass:
         st.error("Invalid Passphrase")
 
 # --- USER APP LOGIC ---
+# Safely grab access token from URL parameters
 query_params = st.query_params
 access_token = query_params.get("access", None)
 
+tokens_db = st.session_state.tokens_db
+
+# 1. Check if token was provided and exists
 if not access_token or access_token not in tokens_db:
     st.title("🎬 Batch Timestamp Clipper")
     st.warning("🔒 **Private Trial Access Only:** A valid, active invitation link is required to access this trial utility.")
     st.stop()
 
+# 2. Check if token has already been burned / used
 if tokens_db[access_token] == "used":
     st.title("🎬 Batch Timestamp Clipper")
     st.error("🚫 **Invitation Link Expired:** This unique trial link has already been used and is now permanently deactivated. To unlock unlimited native desktop rendering and batch processing, please upgrade to the full $49 desktop version.")
     st.stop()
 
-# Active Trial Interface
+# --- ACTIVE TRIAL INTERFACE ---
 st.title("🎬 Batch Timestamp Clipper")
 st.success(f"✅ Verified Trial Session Active for: `{access_token}`")
 st.write("Professional multi-link media extraction and batch utility.")
@@ -89,7 +84,7 @@ if st.button("Process Batch Queue"):
             st.error("Trial batch is limited to 10 links at a time. Please reduce your list.")
         else:
             # BURN THE TOKEN PERMANENTLY ON SUCCESSFUL OUTPUT
-            burn_token(access_token)
+            st.session_state.tokens_db[access_token] = "used"
             
             st.success(f"Successfully processed batch queue ({len(cleaned_links)} links generated).")
             
