@@ -37,9 +37,8 @@ with st.sidebar:
     st.subheader("🛠️ Proton Admin Control")
     admin_pass = st.text_input("Secure Passphrase:", type="password")
     
-    # Secure passphrase verification
-    if admin_pass == "Quantum7-Router9-Nexus4-Shield!
-":
+    # Secure passphrase verification set to Quantum7-Router9-Nexus4-Shield!
+    if admin_pass == "Quantum7-Router9-Nexus4-Shield!":
         st.success("Access Granted")
         new_creator = st.text_input("Creator Name / ID:", placeholder="e.g. creator_john")
         if st.button("Generate Invite Link"):
