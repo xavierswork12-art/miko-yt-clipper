@@ -1,27 +1,20 @@
 # ==========================================
-# BATCH TIMESTAMP CLIPPER - TRIAL ACCESS APP
-# Updated version with hardcoded secure tokens
-# to prevent file-sync failures on Streamlit Cloud.
+# BATCH TIMESTAMP CLIPPER - APP.PY
 # ==========================================
 
 import streamlit as st
 
-# Page configuration for the app layout
 st.set_page_config(
     page_title="Batch Timestamp Clipper", 
     layout="centered", 
     initial_sidebar_state="expanded"
 )
 
-# 1. CENTRALIZED TOKEN DATABASE
-# Hardcoding active trial tokens here guarantees they will 
-# work instantly across any new tab, browser, or incognito window 
-# without relying on failing cloud file systems.
+# Initialize the token database in session state with reliable defaults
 if "tokens_db" not in st.session_state:
     st.session_state.tokens_db = {
         "test_creator": "unused",
-        "creator_miko": "unused",
-        "trial_user_01": "unused"
+        "creator_miko": "unused"
     }
 
 tokens_db = st.session_state.tokens_db
@@ -33,22 +26,17 @@ with st.sidebar:
     st.subheader("🛠️ Proton Admin Control")
     admin_pass = st.text_input("Secure Passphrase:", type="password")
     
-    # Passphrase check
     if admin_pass == "Quantum7-Router9-Nexus4-Shield!":
         st.success("Access Granted")
         
-        # Input field to add a new creator token on the fly
         new_creator = st.text_input("Creator Name / ID:", placeholder="e.g. creator_john")
         
         if st.button("Generate Invite Link"):
             if new_creator:
-                # Clean the name to ensure URL safety
                 clean_name = new_creator.strip().replace(" ", "_")
-                
-                # Register the token as unused in memory
                 tokens_db[clean_name] = "unused"
                 
-                # Generate the public link URL
+                # Correct public base URL structure for your Streamlit deployment
                 base_url = "https://mikoytclipper.streamlit.app"
                 invite_link = f"{base_url}/?access={clean_name}"
                 
@@ -67,17 +55,17 @@ with st.sidebar:
 # ==========================================
 # ACCESS CONTROL & SECURITY LOGIC
 # ==========================================
-# Grab the access token parameter from the URL (?access=...)
+# Safely capture query parameters from the browser URL string
 query_params = st.query_params
 access_token = query_params.get("access", None)
 
-# Check 1: Ensure a token was provided in the URL and exists in our database
+# Validate that the token parameter exists and is recognized
 if not access_token or access_token not in tokens_db:
     st.title("🎬 Batch Timestamp Clipper")
     st.warning("🔒 **Private Trial Access Only:** A valid, active invitation link is required to access this trial utility.")
     st.stop()
 
-# Check 2: Ensure the token has not already been burned ("used")
+# Check if the token has already been used/burned
 if tokens_db[access_token] == "used":
     st.title("🎬 Batch Timestamp Clipper")
     st.error("🚫 **Invitation Link Expired:** This unique trial link has already been used and is now permanently deactivated. To unlock unlimited native desktop rendering and batch processing, please upgrade to the full $49 desktop version.")
@@ -90,7 +78,6 @@ st.title("🎬 Batch Timestamp Clipper")
 st.success(f"✅ Verified Trial Session Active for: `{access_token}`")
 st.write("Professional multi-link media extraction and batch utility.")
 
-# Input for YouTube links
 video_links = st.text_area(
     "Paste YouTube Links (Max 10 links for trial):",
     placeholder="https://www.youtube.com/watch?v=...\nhttps://www.youtube.com/watch?v=..."
@@ -109,7 +96,7 @@ resolution = st.selectbox(
 
 naming_template = st.text_input("Naming Template:", placeholder="[Track Name] - [Artist]")
 
-# Action Button: Triggers processing and permanently burns the token
+# Action Button: Process links and burn the token permanently
 if st.button("Process Batch Queue"):
     cleaned_links = [line.strip() for line in video_links.split("\n") if line.strip()]
     
@@ -117,7 +104,7 @@ if st.button("Process Batch Queue"):
         if len(cleaned_links) > 10:
             st.error("Trial batch is limited to 10 links at a time. Please reduce your list.")
         else:
-            # PERMANENTLY BURN THE TOKEN UPON SUCCESSFUL BATCH RUN
+            # Burn the token upon successful execution
             tokens_db[access_token] = "used"
             
             st.success(f"Successfully processed batch queue ({len(cleaned_links)} links generated).")
