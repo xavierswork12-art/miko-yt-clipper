@@ -7,7 +7,7 @@ st.write("Professional multi-link media extraction and batch utility.")
 
 # Multiple YouTube Links Input
 video_links = st.text_area(
-    "Paste YouTube Links (One link per line for batch processing):",
+    "Paste YouTube Links (One link per line for unlimited batch processing):",
     placeholder="https://www.youtube.com/watch?v=...\nhttps://www.youtube.com/watch?v=..."
 )
 
@@ -39,6 +39,7 @@ if st.button("Process Batch Queue"):
         st.write(f"⚙️ **Resolution/Format:** {resolution}")
         st.write(f"📁 **Naming Template:** `{naming_template or 'Default_Output'}`")
         
-        st.warning("📥 *Trial Mode Active:* Unlimited local batch rendering, multi-threaded queues, and automated file renaming are unlocked in the full $49 desktop version.")
+        st.info("📥 *Trial Mode Active:* Unlimited local batch rendering, multi-threaded queues, and automated file renaming are unlocked in the full $49 desktop version.")
     else:
-        st.error("Please paste at least one video link to proceed.")
+        # Replaced the harsh red error with a smooth, neutral notice
+        st.warning("Please paste at least one video link above to start processing your batch queue.")
