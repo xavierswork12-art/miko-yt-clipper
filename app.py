@@ -6,29 +6,62 @@ st.set_page_config(page_title="Batch Timestamp Clipper", layout="centered")
 
 TOKEN_FILE = "tokens.json"
 
-def load_tokens():
+def load_data():
     if os.path.exists(TOKEN_FILE):
         with open(TOKEN_FILE, "r") as f:
-            return json.load(f).get("tokens", {})
-    return {}
+            return json.load(f)
+    return {"tokens": {}}
+
+def save_data(data):
+    with open(TOKEN_FILE, "w") as f:
+        json.dump(data, f, indent=4)
 
 def burn_token(token_to_burn):
-    if os.path.exists(TOKEN_FILE):
-        with open(TOKEN_FILE, "r") as f:
-            data = json.load(f)
-        
-        if "tokens" in data and token_to_burn in data["tokens"]:
-            data["tokens"][token_to_burn] = "used"
-            with open(TOKEN_FILE, "w") as f:
-                json.dump(data, f, indent=4)
+    data = load_data()
+    if "tokens" in data and token_to_burn in data["tokens"]:
+        data["tokens"][token_to_burn] = "used"
+        save_data(data)
 
-# Get the access token from the URL query parameters
+def create_token(new_token):
+    data = load_data()
+    if "tokens" not in data:
+        data["tokens"] = {}
+    data["tokens"][new_token] = "unused"
+    save_data(data)
+
+data_db = load_data()
+tokens_db = data_db.get("tokens", {})
+
+# --- HIDDEN ADMIN PANEL (For your eyes only) ---
+with st.sidebar:
+    st.subheader("🛠️ Miko's Admin Control")
+    admin_pass = st.text_input("Admin Password:", type="password")
+    
+    # Set your secret admin password here (change 'mikosecret123' to whatever you want)
+    if admin_pass == "mikosecret123":
+        st.success("Admin Unlocked!")
+        new_creator = st.text_input("Creator Name / ID:", placeholder="e.g. music_creator_joe")
+        if st.button("Generate Invite Link"):
+            if new_creator:
+                clean_name = new_creator.strip().replace(" ", "_")
+                create_token(clean_name)
+                base_url = "https://mikoytclipper.streamlit.app"
+                invite_link = f"{base_url}/?access={clean_name}"
+                st.success("Link generated successfully!")
+                st.code(invite_link, language="text")
+            else:
+                st.error("Enter a creator name first.")
+        
+        st.divider()
+        st.write("📊 **Token Status List:**")
+        st.json(tokens_db)
+    elif admin_pass:
+        st.error("Incorrect Password")
+
+# --- USER APP LOGIC ---
 query_params = st.query_params
 access_token = query_params.get("access", None)
 
-tokens_db = load_tokens()
-
-# Validation checks
 if not access_token or access_token not in tokens_db:
     st.title("🎬 Batch Timestamp Clipper")
     st.warning("🔒 **Private Trial Access Only:** A valid, active invitation link is required to access this trial utility.")
