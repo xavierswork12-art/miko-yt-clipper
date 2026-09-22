@@ -6,19 +6,22 @@ st.set_page_config(page_title="Batch Timestamp Clipper", layout="centered", init
 
 TOKEN_FILE = "tokens.json"
 
-# Initialize session state tokens from json file once per session
-if "tokens_db" not in st.session_state:
+def load_tokens():
     if os.path.exists(TOKEN_FILE):
         try:
             with open(TOKEN_FILE, "r") as f:
                 data = json.load(f)
-                st.session_state.tokens_db = data.get("tokens", {"test_creator": "unused"})
+                return data.get("tokens", {"test_creator": "unused"})
         except Exception:
-            st.session_state.tokens_db = {"test_creator": "unused"}
-    else:
-        st.session_state.tokens_db = {"test_creator": "unused"}
+            return {"test_creator": "unused"}
+    return {"test_creator": "unused"}
 
-tokens_db = st.session_state.tokens_db
+def save_tokens(tokens_dict):
+    try:
+        with open(TOKEN_FILE, "w") as f:
+            json.dump({"tokens": tokens_dict}, f, indent=4)
+    except Exception as e:
+        st.error(f"File write error: {e}")
 
 # --- SECURE ADMIN PANEL (Passphrase-Protected) ---
 with st.sidebar:
@@ -31,7 +34,11 @@ with st.sidebar:
         if st.button("Generate Invite Link"):
             if new_creator:
                 clean_name = new_creator.strip().replace(" ", "_")
-                tokens_db[clean_name] = "unused"
+                
+                # Load current tokens, add new one, and save immediately
+                current_db = load_tokens()
+                current_db[clean_name] = "unused"
+                save_tokens(current_db)
                 
                 base_url = "https://mikoytclipper.streamlit.app"
                 invite_link = f"{base_url}/?access={clean_name}"
@@ -42,7 +49,7 @@ with st.sidebar:
         
         st.divider()
         st.write("📊 **Token Status List:**")
-        st.json(tokens_db)
+        st.json(load_tokens())
     elif admin_pass:
         st.error("Invalid Passphrase")
 
@@ -50,12 +57,15 @@ with st.sidebar:
 query_params = st.query_params
 access_token = query_params.get("access", None)
 
-if not access_token or access_token not in tokens_db:
+# Always load the latest state from the file database for every incoming request
+active_tokens = load_tokens()
+
+if not access_token or access_token not in active_tokens:
     st.title("🎬 Batch Timestamp Clipper")
     st.warning("🔒 **Private Trial Access Only:** A valid, active invitation link is required to access this trial utility.")
     st.stop()
 
-if tokens_db[access_token] == "used":
+if active_tokens[access_token] == "used":
     st.title("🎬 Batch Timestamp Clipper")
     st.error("🚫 **Invitation Link Expired:** This unique trial link has already been used and is now permanently deactivated. To unlock unlimited native desktop rendering and batch processing, please upgrade to the full $49 desktop version.")
     st.stop()
@@ -83,7 +93,7 @@ resolution = st.selectbox(
 
 naming_template = st.text_input("Naming Template:", placeholder="[Track Name] - [Artist]")
 
-# Action Button - Burns the token instantly upon execution
+# Action Button - Burns the token permanently upon successful execution
 if st.button("Process Batch Queue"):
     cleaned_links = [line.strip() for line in video_links.split("\n") if line.strip()]
     
@@ -91,8 +101,10 @@ if st.button("Process Batch Queue"):
         if len(cleaned_links) > 10:
             st.error("Trial batch is limited to 10 links at a time. Please reduce your list.")
         else:
-            # BURN THE TOKEN IN SESSION MEMORY
-            tokens_db[access_token] = "used"
+            # BURN THE TOKEN IN THE JSON DATABASE
+            fresh_db = load_tokens()
+            fresh_db[access_token] = "used"
+            save_tokens(fresh_db)
             
             st.success(f"Successfully processed batch queue ({len(cleaned_links)} links generated).")
             
