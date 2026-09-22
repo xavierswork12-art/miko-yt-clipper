@@ -15,7 +15,7 @@ def load_tokens():
 def burn_token(token_to_burn):
     if os.path.exists(TOKEN_FILE):
         with open(TOKEN_FILE, "r") as f:
-        data = json.load(f)
+            data = json.load(f)
         
         if "tokens" in data and token_to_burn in data["tokens"]:
             data["tokens"][token_to_burn] = "used"
