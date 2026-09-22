@@ -7,7 +7,7 @@ st.write("Professional multi-link media extraction and batch utility.")
 
 # Multiple YouTube Links Input
 video_links = st.text_area(
-    "Paste YouTube Links (One link per line for unlimited batch processing):",
+    "Paste YouTube Links (One link per line for batch processing):",
     placeholder="https://www.youtube.com/watch?v=...\nhttps://www.youtube.com/watch?v=..."
 )
 
