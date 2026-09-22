@@ -32,15 +32,15 @@ def create_token(new_token):
 data_db = load_data()
 tokens_db = data_db.get("tokens", {})
 
-# --- HIDDEN ADMIN PANEL (For your eyes only) ---
+# --- SECURE ADMIN PANEL (Passphrase-Protected) ---
 with st.sidebar:
-    st.subheader("🛠️ Miko's Admin Control")
-    admin_pass = st.text_input("Admin Password:", type="password")
+    st.subheader("🛠️ Proton Admin Control")
+    admin_pass = st.text_input("Secure Passphrase:", type="password")
     
-    # Set your secret admin password here (change 'mikosecret123' to whatever you want)
-    if admin_pass == "mikosecret123":
-        st.success("Admin Unlocked!")
-        new_creator = st.text_input("Creator Name / ID:", placeholder="e.g. music_creator_joe")
+    # Secure passphrase verification
+    if admin_pass == "Falcon3-Terminal6-Stream7-Vanguard!":
+        st.success("Access Granted")
+        new_creator = st.text_input("Creator Name / ID:", placeholder="e.g. creator_john")
         if st.button("Generate Invite Link"):
             if new_creator:
                 clean_name = new_creator.strip().replace(" ", "_")
@@ -56,7 +56,7 @@ with st.sidebar:
         st.write("📊 **Token Status List:**")
         st.json(tokens_db)
     elif admin_pass:
-        st.error("Incorrect Password")
+        st.error("Invalid Passphrase")
 
 # --- USER APP LOGIC ---
 query_params = st.query_params
