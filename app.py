@@ -1,5 +1,5 @@
 # ==========================================
-# MIKO YT CLIPPER - STABLE STREAMLIT BUILD
+# MIKO YT CLIPPER - FIXED FFMPEG CUTTING
 # ==========================================
 
 import streamlit as st
@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom Styling for white text and dark inputs
+# Custom Styling
 st.markdown("""
     <style>
     html, body, [class*="css"], .stMarkdown, p, label {
@@ -25,29 +25,23 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 1. ADMIN PASSWORD
+# Admin & Paid Client Credentials
 ADMIN_PASSWORD = "Quantum7-Router9-Nexus4-Shield!"
-
-# 2. PERMANENT PAID CLIENT DATABASE
 PAID_CLIENTS = {
     "john123": "John Doe",
     "sarah_pass_99": "Sarah FX",
     "miko_vip": "MIKO Test User"
 }
 
-# Session State Initialization
 if "user_role" not in st.session_state:
     st.session_state.user_role = None
 if "logged_in_name" not in st.session_state:
     st.session_state.logged_in_name = None
 
-# ==========================================
-# LOGIN SCREEN
-# ==========================================
+# Login Screen
 if st.session_state.user_role is None:
     st.title("🎬 MIKO YT Clipper")
-    st.warning("🔒 **Secure Access Portal:** Please enter your assigned password or admin key below.")
-    
+    st.warning("🔒 **Secure Access Portal:** Enter your assigned password below.")
     entered_password = st.text_input("Enter Password:", type="password")
     
     if st.button("Access Portal"):
@@ -60,12 +54,10 @@ if st.session_state.user_role is None:
             st.session_state.logged_in_name = PAID_CLIENTS[entered_password]
             st.rerun()
         else:
-            st.error("Incorrect password. Please check your key or contact MIKO.")
+            st.error("Incorrect password.")
     st.stop()
 
-# ==========================================
-# SIDEBAR NAVIGATION & ADMIN CONTROLS
-# ==========================================
+# Sidebar Navigation
 with st.sidebar:
     st.write(f"👤 Logged in as: **{st.session_state.logged_in_name}**")
     if st.button("Log Out"):
@@ -73,16 +65,7 @@ with st.sidebar:
         st.session_state.logged_in_name = None
         st.rerun()
 
-    if st.session_state.user_role == "admin":
-        st.divider()
-        st.subheader("🎛️ Admin Control Panel")
-        st.write("📋 **Registered Client Database:**")
-        for pwd, name in PAID_CLIENTS.items():
-            st.text(f"• {name}\n  Password: `{pwd}`")
-
-# ==========================================
-# MAIN APPLICATION INTERFACE
-# ==========================================
+# Main UI
 st.title("🎬 MIKO YT Clipper")
 st.success(f"⭐ Active Workspace — User: `{st.session_state.logged_in_name}`")
 st.write("Extract and clip YouTube videos with per-link timestamps.")
@@ -95,12 +78,11 @@ col1, col2 = st.columns(2)
 with col1:
     resolution = st.selectbox(
         "Select Resolution / Format:",
-        ["Best Video Quality (MP4)", "Audio Only (MP3/M4A)"]
+        ["Best Video Quality (MP4)", "Audio Only (MP3)"]
     )
 with col2:
     naming_template = st.text_input("Naming Template (Optional):", placeholder="[Track Name] - [Artist]")
 
-# Helper function to convert time formats (HH:MM:SS, MM:SS, SS) to seconds
 def parse_time_to_seconds(time_str):
     if not time_str:
         return None
@@ -120,9 +102,9 @@ if st.button("Process & Generate Video Downloads"):
     lines = [line.strip() for line in raw_input.split("\n") if line.strip()]
     
     if not lines:
-        st.warning("The input box is empty. Please paste at least one YouTube link.")
+        st.warning("Please paste at least one YouTube link.")
     elif len(lines) > 10:
-        st.error(f"⚠️ Limit Exceeded: You submitted {len(lines)} links. The maximum allowed per batch is 10.")
+        st.error(f"⚠️ Maximum limit is 10 links per batch.")
     else:
         st.divider()
         st.subheader("📥 Processed Downloads")
@@ -133,28 +115,41 @@ if st.button("Process & Generate Video Downloads"):
             start_str = parts[1] if len(parts) > 1 else None
             end_str = parts[2] if len(parts) > 2 else None
             
-            start_sec = parse_time_to_seconds(start_str)
-            end_sec = parse_time_to_seconds(end_str)
-            
             st.markdown(f"### Video {idx}: `{url}`")
             if start_str or end_str:
                 st.caption(f"⏱️ Trimming: `{start_str or '00:00:00'}` ➔ `{end_str or 'End'}` | Format: `{resolution}`")
             
             is_audio = "Audio" in resolution
-            ext = "m4a" if is_audio else "mp4"
+            ext = "mp3" if is_audio else "mp4"
             output_filename = f"miko_clip_{idx}.{ext}"
             
+            # Resilient yt-dlp configuration with clean FFmpeg arguments
             ydl_opts = {
-                'format': 'bestaudio/best' if is_audio else 'bestvideo+bestaudio/best',
-                'outtmpl': output_filename,
+                'format': 'best',
+                'outtmpl': f"miko_clip_{idx}.%(ext)s",
                 'overwrites': True,
                 'quiet': True,
                 'no_warnings': True,
             }
-            
-            if start_sec is not None and end_sec is not None:
-                ydl_opts['download_ranges'] = yt_dlp.utils.download_range_func(None, [(start_sec, end_sec)])
-                ydl_opts['force_keyframes_at_cuts'] = True
+
+            if is_audio:
+                ydl_opts['format'] = 'bestaudio/best'
+                ydl_opts['postprocessors'] = [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '192',
+                }]
+
+            # Precise FFmpeg trimming args
+            ffmpeg_args = []
+            if start_str:
+                ffmpeg_args.extend(['-ss', start_str])
+            if end_str:
+                ffmpeg_args.extend(['-to', end_str])
+                
+            if ffmpeg_args:
+                ydl_opts['external_downloader'] = 'ffmpeg'
+                ydl_opts['external_downloader_args'] = {'ffmpeg_i': ffmpeg_args}
 
             with st.spinner(f"Processing video {idx}..."):
                 try:
