@@ -1,8 +1,11 @@
 # ==========================================
-# MIKO YT CLIPPER - SECURE ACCESS PORTAL
+# MIKO YT CLIPPER - REAL DOWNLOAD PIPELINE
 # ==========================================
 
 import streamlit as st
+import yt_dlp
+import os
+import re
 
 st.set_page_config(
     page_title="MIKO YT Clipper", 
@@ -14,21 +17,20 @@ st.set_page_config(
 ADMIN_PASSWORD = "Quantum7-Router9-Nexus4-Shield!"
 
 # 2. PERMANENT PAID CLIENT DATABASE
-# To add a new client, just add their password and name here and save!
 PAID_CLIENTS = {
     "john123": "John Doe",
     "sarah_pass_99": "Sarah FX",
     "miko_vip": "MIKO Test User"
 }
 
-# Track login session state
+# Session State for Authentication
 if "user_role" not in st.session_state:
-    st.session_state.user_role = None  # "admin" or "client"
+    st.session_state.user_role = None
 if "logged_in_name" not in st.session_state:
     st.session_state.logged_in_name = None
 
 # ==========================================
-# LOGIN SCREEN (Shown if not logged in)
+# LOGIN SCREEN
 # ==========================================
 if st.session_state.user_role is None:
     st.title("🎬 MIKO YT Clipper")
@@ -37,27 +39,20 @@ if st.session_state.user_role is None:
     entered_password = st.text_input("Enter Password:", type="password")
     
     if st.button("Access Portal"):
-        # Check if Admin Password matches
         if entered_password == ADMIN_PASSWORD:
             st.session_state.user_role = "admin"
             st.session_state.logged_in_name = "MIKO (Admin)"
-            st.success("Admin access granted!")
             st.rerun()
-            
-        # Check if Client Password matches
         elif entered_password in PAID_CLIENTS:
             st.session_state.user_role = "client"
             st.session_state.logged_in_name = PAID_CLIENTS[entered_password]
-            st.success(f"Welcome, {st.session_state.logged_in_name}!")
             st.rerun()
-            
         else:
             st.error("Incorrect password. Please check your key or contact MIKO.")
-            
     st.stop()
 
 # ==========================================
-# SIDEBAR CONTROLS & LOGOUT
+# SIDEBAR NAVIGATION & ADMIN CONTROLS
 # ==========================================
 with st.sidebar:
     st.write(f"👤 Logged in as: **{st.session_state.logged_in_name}**")
@@ -66,52 +61,113 @@ with st.sidebar:
         st.session_state.logged_in_name = None
         st.rerun()
 
-    # ADMIN VIEW (Only visible when MIKO logs in with admin password)
     if st.session_state.user_role == "admin":
         st.divider()
         st.subheader("🎛️ Admin Control Panel")
         st.write("📋 **Registered Client Database:**")
-        st.info("To add or change client passwords, update the `PAID_CLIENTS` list at the top of your `app.py` file.")
-        
         for pwd, name in PAID_CLIENTS.items():
             st.text(f"• {name}\n  Password: `{pwd}`")
 
 # ==========================================
-# MAIN YOUTUBE BATCH CLIPPER TOOL
-# (Visible to MIKO Admin and Logged-in Clients)
+# MAIN APPLICATION INTERFACE
 # ==========================================
 st.title("🎬 MIKO YT Clipper")
 st.success(f"⭐ Active Workspace — User: `{st.session_state.logged_in_name}`")
-st.write("Professional multi-link media extraction and batch utility.")
+st.write("Extract and clip YouTube videos with per-link timestamps.")
 
-video_links = st.text_area(
-    "Paste YouTube Links (Max 10 links):",
-    placeholder="https://www.youtube.com/watch?v=...\nhttps://www.youtube.com/watch?v=..."
+# Instructions for individual timestamps
+st.info("💡 **Format for per-link timestamps:**\n`URL | START_TIME | END_TIME` (Example: `https://www.youtube.com/watch?v=dQw4w9WgXcQ | 00:00:10 | 00:00:25`)")
+
+raw_input = st.text_area(
+    "Paste YouTube Links (One per line):",
+    placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ | 00:00:05 | 00:00:20\nhttps://www.youtube.com/watch?v=jNQXAC9IVRw | 00:00:10 | 00:00:30",
+    height=150
 )
-
-col1, col2 = st.columns(2)
-with col1:
-    start_time = st.text_input("Default Start Time (Optional):", placeholder="00:00:00")
-with col2:
-    end_time = st.text_input("Default End Time (Optional):", placeholder="00:00:30")
 
 resolution = st.selectbox(
-    "Select Video Resolution / Quality:",
-    ["Best Available (Source)", "1080p (Full HD)", "720p (HD)", "Audio Only (MP3)"]
+    "Select Video Resolution / Format:",
+    ["720p (Fastest)", "1080p (Best Quality)", "Audio Only (MP3)"]
 )
 
-naming_template = st.text_input("Naming Template:", placeholder="[Track Name] - [Artist]")
+# Function to parse time format HH:MM:SS or MM:SS to seconds
+def parse_time_to_seconds(time_str):
+    if not time_str:
+        return None
+    parts = time_str.strip().split(":")
+    try:
+        if len(parts) == 3:
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+        elif len(parts) == 2:
+            return int(parts[0]) * 60 + int(parts[1])
+        elif len(parts) == 1:
+            return int(parts[0])
+    except ValueError:
+        return None
+    return None
 
-if st.button("Process Batch Queue"):
-    cleaned_links = [line.strip() for line in video_links.split("\n") if line.strip()]
+if st.button("Process & Generate Video Downloads"):
+    lines = [line.strip() for line in raw_input.split("\n") if line.strip()]
     
-    if len(cleaned_links) > 0:
-        st.success(f"Successfully processed batch queue ({len(cleaned_links)} links generated).")
-        
-        with st.expander("Preview Extracted Batch Output"):
-            for i, link in enumerate(cleaned_links, 1):
-                st.write(f"{i}. `{link}` → Successfully processed output (`{naming_template or 'Default'}` @ {resolution})")
-                
-        st.info("📥 Batch execution complete!")
+    if not lines:
+        st.error("Please paste at least one valid YouTube link.")
     else:
-        st.info("Please paste at least one valid YouTube link above to generate your batch queue.")
+        st.divider()
+        st.subheader("📥 Processed Downloads")
+        
+        for idx, line in enumerate(lines, 1):
+            # Parse line format: URL | START | END
+            parts = [p.strip() for p in line.split("|")]
+            url = parts[0]
+            start_str = parts[1] if len(parts) > 1 else None
+            end_str = parts[2] if len(parts) > 2 else None
+            
+            start_sec = parse_time_to_seconds(start_str)
+            end_sec = parse_time_to_seconds(end_str)
+            
+            st.markdown(f"### Video {idx}: `{url}`")
+            if start_str or end_str:
+                st.caption(f"⏱️ Trimming: `{start_str or '00:00:00'}` ➔ `{end_str or 'End'}`")
+            
+            output_filename = f"miko_clip_{idx}.mp4"
+            
+            # Configure yt-dlp parameters
+            ydl_opts = {
+                'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                'outtmpl': output_filename,
+                'overwrites': True,
+                'quiet': True,
+            }
+            
+            # Add section downloading if timestamps exist
+            if start_sec is not None and end_sec is not None:
+                ydl_opts['download_ranges'] = yt_dlp.utils.download_range_func(None, [(start_sec, end_sec)])
+                ydl_opts['force_keyframes_at_cuts'] = True
+
+            with st.spinner(f"Downloading and rendering video {idx}..."):
+                try:
+                    # Clean previous download if exists
+                    if os.path.exists(output_filename):
+                        os.remove(output_filename)
+                        
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        ydl.download([url])
+                    
+                    # Display the real video player & download button
+                    if os.path.exists(output_filename):
+                        st.video(output_filename)
+                        
+                        with open(output_filename, "rb") as file:
+                            st.download_button(
+                                label=f"📥 Download Clip #{idx}",
+                                data=file,
+                                file_name=f"miko_yt_clip_{idx}.mp4",
+                                mime="video/mp4",
+                                key=f"dl_{idx}"
+                            )
+                        st.success(f"Video #{idx} ready for download!")
+                    else:
+                        st.error("Failed to generate clip file.")
+                        
+                except Exception as e:
+                    st.error(f"Error processing video #{idx}: {str(e)}")
+            st.divider()
