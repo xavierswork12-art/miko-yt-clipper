@@ -1,5 +1,5 @@
 # ==========================================
-# MIKO YT CLIPPER - FULL SECURE APPLICATION
+# MIKO YT CLIPPER - STABLE STREAMLIT BUILD
 # ==========================================
 
 import streamlit as st
@@ -12,21 +12,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom Styling for clean white text and dark inputs
+# Custom Styling for white text and dark inputs
 st.markdown("""
     <style>
-    html, body, [class*="css"] {
+    html, body, [class*="css"], .stMarkdown, p, label {
         color: #FFFFFF !important;
     }
     input, textarea, select {
         color: #FFFFFF !important;
         background-color: #1E1E1E !important;
-    }
-    label, div[data-testid="stMarkdownContainer"] p {
-        color: #FFFFFF !important;
-    }
-    textarea:focus, input:focus {
-        border-color: #4CAF50 !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -101,7 +95,7 @@ col1, col2 = st.columns(2)
 with col1:
     resolution = st.selectbox(
         "Select Resolution / Format:",
-        ["Best Video Quality (MP4)", "Audio Only (MP3)"]
+        ["Best Video Quality (MP4)", "Audio Only (MP3/M4A)"]
     )
 with col2:
     naming_template = st.text_input("Naming Template (Optional):", placeholder="[Track Name] - [Artist]")
@@ -147,34 +141,17 @@ if st.button("Process & Generate Video Downloads"):
                 st.caption(f"⏱️ Trimming: `{start_str or '00:00:00'}` ➔ `{end_str or 'End'}` | Format: `{resolution}`")
             
             is_audio = "Audio" in resolution
-            ext = "mp3" if is_audio else "mp4"
+            ext = "m4a" if is_audio else "mp4"
             output_filename = f"miko_clip_{idx}.{ext}"
             
-            # Universal yt-dlp format options that avoid missing format errors
-            if is_audio:
-                ydl_opts = {
-                    'format': 'bestaudio/best',
-                    'postprocessors': [{
-                        'key': 'FFmpegExtractAudio',
-                        'preferredcodec': 'mp3',
-                        'preferredquality': '192',
-                    }],
-                    'outtmpl': f"miko_clip_{idx}",
-                    'overwrites': True,
-                    'quiet': True,
-                    'no_warnings': True,
-                }
-            else:
-                ydl_opts = {
-                    'format': 'bestvideo+bestaudio/best',
-                    'merge_output_format': 'mp4',
-                    'outtmpl': output_filename,
-                    'overwrites': True,
-                    'quiet': True,
-                    'no_warnings': True,
-                }
+            ydl_opts = {
+                'format': 'bestaudio/best' if is_audio else 'bestvideo+bestaudio/best',
+                'outtmpl': output_filename,
+                'overwrites': True,
+                'quiet': True,
+                'no_warnings': True,
+            }
             
-            # Add range clipping if timestamps exist
             if start_sec is not None and end_sec is not None:
                 ydl_opts['download_ranges'] = yt_dlp.utils.download_range_func(None, [(start_sec, end_sec)])
                 ydl_opts['force_keyframes_at_cuts'] = True
