@@ -1,5 +1,5 @@
 # ==========================================
-# MICO YT CLIPPER - MASTER APP WITH CLIENT BYPASS
+# MICO YT CLIPPER - UNIFIED PASSWORD PORTAL
 # ==========================================
 
 import streamlit as st
@@ -10,87 +10,98 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 1. Master live toggle state for public demos (Default: Off)
-if "is_live" not in st.session_state:
-    st.session_state.is_live = False
+# 1. ADMIN PASSWORD
+ADMIN_PASSWORD = "Quantum7-Router9-Nexus4-Shield!"
 
-# 2. Database of Paid Client Passwords / License Keys
-# When someone pays $49, add their key and name here.
-PAID_CLIENTS = {
-    "john_clipper_99": "John Doe",
-    "sarah_media_77": "Sarah FX",
-}
+# 2. PAID CLIENT PASSWORDS DATABASE
+# Stored in session state so you can add new clients on the fly from the admin panel!
+if "paid_clients" not in st.session_state:
+    st.session_state.paid_clients = {
+        "john123": "John Doe",
+        "sarah_pass_99": "Sarah FX"
+    }
 
-# ==========================================
-# ADMIN MASTER CONTROL PANEL (Sidebar)
-# ==========================================
-with st.sidebar:
-    st.subheader("🎛️ Mico Admin Control")
-    admin_pass = st.text_input("Admin Passphrase:", type="password")
-    
-    if admin_pass == "Quantum7-Router9-Nexus4-Shield!":
-        st.success("Admin Access Granted")
-        
-        # Master Switch for public demos
-        st.session_state.is_live = st.toggle("Enable Public Demo Access", value=st.session_state.is_live)
-        
-        if st.session_state.is_live:
-            st.success("🟢 Demo Status: LIVE (Public can access)")
-        else:
-            st.warning("🔴 Demo Status: OFFLINE (Public locked out)")
-            
-        st.divider()
-        st.write("💰 **Registered Client Keys:**")
-        for key, name in PAID_CLIENTS.items():
-            st.text(f"• {name}\n  Link: ?key={key}")
-            
-    elif admin_pass:
-        st.error("Invalid Admin Passphrase")
+# Track current login state and role
+if "user_role" not in st.session_state:
+    st.session_state.user_role = None  # Can be "admin" or "client"
+if "logged_in_name" not in st.session_state:
+    st.session_state.logged_in_name = None
 
 # ==========================================
-# CLIENT LOGIN & ACCESS CHECK
+# LOGIN SCREEN (Shown if not logged in)
 # ==========================================
-query_params = st.query_params
-url_client_key = query_params.get("key", None)
-
-if "logged_in_client" not in st.session_state:
-    st.session_state.logged_in_client = None
-
-# Auto-login if they use their personal URL link (e.g. ?key=john_clipper_99)
-if url_client_key in PAID_CLIENTS:
-    st.session_state.logged_in_client = PAID_CLIENTS[url_client_key]
-
-active_client = st.session_state.logged_in_client
-is_paid_client = active_client is not None
-
-# ==========================================
-# ACCESS GATE LOGIC
-# ==========================================
-# If public demo is OFF AND the user is NOT a paid client, lock them out.
-# (Note: Even if is_live is False, paid clients bypass this check completely!)
-if not st.session_state.is_live and not is_paid_client:
+if st.session_state.user_role is None:
     st.title("🎬 Mico YT Clipper")
-    st.warning("🔒 **Utility Offline:** Public demo access is currently turned off. If you are a licensed client, please use your private invitation link or enter your license key below.")
+    st.warning("🔒 **Secure Access Portal:** Please enter your assigned password or admin key below.")
     
-    entered_key = st.text_input("Enter Client License Key:", type="password")
-    if st.button("Unlock Client Portal"):
-        if entered_key in PAID_CLIENTS:
-            st.session_state.logged_in_client = PAID_CLIENTS[entered_key]
+    entered_password = st.text_input("Enter Password:", type="password")
+    
+    if st.button("Access Portal"):
+        # Check if it's the Admin password
+        if entered_password == ADMIN_PASSWORD:
+            st.session_state.user_role = "admin"
+            st.session_state.logged_in_name = "Mico (Admin)"
+            st.success("Admin access granted!")
             st.rerun()
+            
+        # Check if it's a valid client password
+        elif entered_password in st.session_state.paid_clients:
+            st.session_state.user_role = "client"
+            st.session_state.logged_in_name = st.session_state.paid_clients[entered_password]
+            st.success(f"Welcome, {st.session_state.logged_in_name}!")
+            st.rerun()
+            
         else:
-            st.error("Invalid key. Please contact Mico to acquire a permanent $49 desktop license.")
+            st.error("Invalid password. Please check your key or contact Mico.")
+            
     st.stop()
 
 # ==========================================
-# MAIN APP INTERFACE (Unlocked for Live Demos or Paid Clients)
+# LOGOUT BUTTON (Available in sidebar for everyone)
+# ==========================================
+with st.sidebar:
+    st.write(f"👤 Logged in as: **{st.session_state.logged_in_name}**")
+    if st.button("Log Out"):
+        st.session_state.user_role = None
+        st.session_state.logged_in_name = None
+        st.rerun()
+
+# ==========================================
+# ADMIN VIEW (Only visible when Mico logs in)
+# ==========================================
+if st.session_state.user_role == "admin":
+    with st.sidebar:
+        st.divider()
+        st.subheader("🎛️ Admin Control Panel")
+        
+        # Master Toggle Switch
+        if "is_live" not in st.session_state:
+            st.session_state.is_live = False
+        st.session_state.is_live = st.toggle("Enable Public Demo Mode", value=st.session_state.is_live)
+        
+        st.divider()
+        st.subheader("➕ Add New Client Password")
+        new_client_name = st.text_input("Client Name:", placeholder="e.g. David Alex")
+        new_client_pwd = st.text_input("Client Password:", placeholder="e.g. david_pass_2026")
+        
+        if st.button("Save New Client"):
+            if new_client_name and new_client_pwd:
+                st.session_state.paid_clients[new_client_pwd.strip()] = new_client_name.strip()
+                st.success(f"Added client: {new_client_name}")
+            else:
+                st.error("Please fill in both name and password.")
+                
+        st.divider()
+        st.subheader("📋 Active Client List")
+        for pwd, name in st.session_state.paid_clients.items():
+            st.text(f"• {name} (Pass: {pwd})")
+
+# ==========================================
+# MAIN YOUTUBE BATCH CLIPPER TOOL
+# (Visible to Admins and Logged-in Clients)
 # ==========================================
 st.title("🎬 Mico YT Clipper")
-
-if is_paid_client:
-    st.success(f"⭐ Welcome, Licensed Client Portal: `{active_client}`")
-else:
-    st.success("🟢 Active Public Demo Session (Master Switch is LIVE)")
-
+st.success(f"⭐ Active Workspace — User: `{st.session_state.logged_in_name}`")
 st.write("Professional multi-link media extraction and batch utility.")
 
 video_links = st.text_area(
