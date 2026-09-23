@@ -1,85 +1,100 @@
 # ==========================================
-# BATCH TIMESTAMP CLIPPER - APP.PY
+# MICO YT CLIPPER - MASTER APP WITH CLIENT BYPASS
 # ==========================================
 
 import streamlit as st
 
 st.set_page_config(
-    page_title="Batch Timestamp Clipper", 
+    page_title="Mico YT Clipper", 
     layout="centered", 
     initial_sidebar_state="expanded"
 )
 
-# Initialize the token database in session state with reliable defaults
-if "tokens_db" not in st.session_state:
-    st.session_state.tokens_db = {
-        "test_creator": "unused",
-        "creator_miko": "unused"
-    }
+# 1. Master live toggle state for public demos (Default: Off)
+if "is_live" not in st.session_state:
+    st.session_state.is_live = False
 
-tokens_db = st.session_state.tokens_db
+# 2. Database of Paid Client Passwords / License Keys
+# When someone pays $49, add their key and name here.
+PAID_CLIENTS = {
+    "john_clipper_99": "John Doe",
+    "sarah_media_77": "Sarah FX",
+}
 
 # ==========================================
-# ADMIN PANEL (Passphrase Protected)
+# ADMIN MASTER CONTROL PANEL (Sidebar)
 # ==========================================
 with st.sidebar:
-    st.subheader("🛠️ Proton Admin Control")
-    admin_pass = st.text_input("Secure Passphrase:", type="password")
+    st.subheader("🎛️ Mico Admin Control")
+    admin_pass = st.text_input("Admin Passphrase:", type="password")
     
     if admin_pass == "Quantum7-Router9-Nexus4-Shield!":
-        st.success("Access Granted")
+        st.success("Admin Access Granted")
         
-        new_creator = st.text_input("Creator Name / ID:", placeholder="e.g. creator_john")
+        # Master Switch for public demos
+        st.session_state.is_live = st.toggle("Enable Public Demo Access", value=st.session_state.is_live)
         
-        if st.button("Generate Invite Link"):
-            if new_creator:
-                clean_name = new_creator.strip().replace(" ", "_")
-                tokens_db[clean_name] = "unused"
-                
-                # Correct public base URL structure for your Streamlit deployment
-                base_url = "https://mikoytclipper.streamlit.app"
-                invite_link = f"{base_url}/?access={clean_name}"
-                
-                st.success("Link generated successfully!")
-                st.code(invite_link, language="text")
-            else:
-                st.error("Enter a creator name first.")
-        
+        if st.session_state.is_live:
+            st.success("🟢 Demo Status: LIVE (Public can access)")
+        else:
+            st.warning("🔴 Demo Status: OFFLINE (Public locked out)")
+            
         st.divider()
-        st.write("📊 **Active Token Status List:**")
-        st.json(tokens_db)
-        
+        st.write("💰 **Registered Client Keys:**")
+        for key, name in PAID_CLIENTS.items():
+            st.text(f"• {name}\n  Link: ?key={key}")
+            
     elif admin_pass:
-        st.error("Invalid Passphrase")
+        st.error("Invalid Admin Passphrase")
 
 # ==========================================
-# ACCESS CONTROL & SECURITY LOGIC
+# CLIENT LOGIN & ACCESS CHECK
 # ==========================================
-# Safely capture query parameters from the browser URL string
 query_params = st.query_params
-access_token = query_params.get("access", None)
+url_client_key = query_params.get("key", None)
 
-# Validate that the token parameter exists and is recognized
-if not access_token or access_token not in tokens_db:
-    st.title("🎬 Batch Timestamp Clipper")
-    st.warning("🔒 **Private Trial Access Only:** A valid, active invitation link is required to access this trial utility.")
-    st.stop()
+if "logged_in_client" not in st.session_state:
+    st.session_state.logged_in_client = None
 
-# Check if the token has already been used/burned
-if tokens_db[access_token] == "used":
-    st.title("🎬 Batch Timestamp Clipper")
-    st.error("🚫 **Invitation Link Expired:** This unique trial link has already been used and is now permanently deactivated. To unlock unlimited native desktop rendering and batch processing, please upgrade to the full $49 desktop version.")
+# Auto-login if they use their personal URL link (e.g. ?key=john_clipper_99)
+if url_client_key in PAID_CLIENTS:
+    st.session_state.logged_in_client = PAID_CLIENTS[url_client_key]
+
+active_client = st.session_state.logged_in_client
+is_paid_client = active_client is not None
+
+# ==========================================
+# ACCESS GATE LOGIC
+# ==========================================
+# If public demo is OFF AND the user is NOT a paid client, lock them out.
+# (Note: Even if is_live is False, paid clients bypass this check completely!)
+if not st.session_state.is_live and not is_paid_client:
+    st.title("🎬 Mico YT Clipper")
+    st.warning("🔒 **Utility Offline:** Public demo access is currently turned off. If you are a licensed client, please use your private invitation link or enter your license key below.")
+    
+    entered_key = st.text_input("Enter Client License Key:", type="password")
+    if st.button("Unlock Client Portal"):
+        if entered_key in PAID_CLIENTS:
+            st.session_state.logged_in_client = PAID_CLIENTS[entered_key]
+            st.rerun()
+        else:
+            st.error("Invalid key. Please contact Mico to acquire a permanent $49 desktop license.")
     st.stop()
 
 # ==========================================
-# MAIN USER APPLICATION INTERFACE
+# MAIN APP INTERFACE (Unlocked for Live Demos or Paid Clients)
 # ==========================================
-st.title("🎬 Batch Timestamp Clipper")
-st.success(f"✅ Verified Trial Session Active for: `{access_token}`")
+st.title("🎬 Mico YT Clipper")
+
+if is_paid_client:
+    st.success(f"⭐ Welcome, Licensed Client Portal: `{active_client}`")
+else:
+    st.success("🟢 Active Public Demo Session (Master Switch is LIVE)")
+
 st.write("Professional multi-link media extraction and batch utility.")
 
 video_links = st.text_area(
-    "Paste YouTube Links (Max 10 links for trial):",
+    "Paste YouTube Links (Max 10 links):",
     placeholder="https://www.youtube.com/watch?v=...\nhttps://www.youtube.com/watch?v=..."
 )
 
@@ -96,23 +111,16 @@ resolution = st.selectbox(
 
 naming_template = st.text_input("Naming Template:", placeholder="[Track Name] - [Artist]")
 
-# Action Button: Process links and burn the token permanently
 if st.button("Process Batch Queue"):
     cleaned_links = [line.strip() for line in video_links.split("\n") if line.strip()]
     
     if len(cleaned_links) > 0:
-        if len(cleaned_links) > 10:
-            st.error("Trial batch is limited to 10 links at a time. Please reduce your list.")
-        else:
-            # Burn the token upon successful execution
-            tokens_db[access_token] = "used"
-            
-            st.success(f"Successfully processed batch queue ({len(cleaned_links)} links generated).")
-            
-            with st.expander("Preview Extracted Batch Output"):
-                for i, link in enumerate(cleaned_links, 1):
-                    st.write(f"{i}. `{link}` → Successfully processed output (`{naming_template or 'Default'}` @ {resolution})")
-                    
-            st.info("📥 *Free Trial Complete:* Your unique invitation link has now been permanently deactivated after delivering your trial outputs. To unlock unlimited native desktop rendering and automated pipelines, upgrade to the full $49 desktop version.")
+        st.success(f"Successfully processed batch queue ({len(cleaned_links)} links generated).")
+        
+        with st.expander("Preview Extracted Batch Output"):
+            for i, link in enumerate(cleaned_links, 1):
+                st.write(f"{i}. `{link}` → Successfully processed output (`{naming_template or 'Default'}` @ {resolution})")
+                
+        st.info("📥 Batch execution complete!")
     else:
         st.info("Please paste at least one valid YouTube link above to generate your batch queue.")
