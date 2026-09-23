@@ -1,5 +1,5 @@
 # ==========================================
-# MIKO YT CLIPPER - STABLE CLEAN INTERFACE
+# MIKO YT CLIPPER - FULL SECURE APPLICATION
 # ==========================================
 
 import streamlit as st
@@ -12,26 +12,19 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Inject CSS to make all input text, textareas, labels, and headers clean white
+# Custom Styling for clean white text and dark inputs
 st.markdown("""
     <style>
-    /* Global text color force */
     html, body, [class*="css"] {
         color: #FFFFFF !important;
     }
-    
-    /* Text inputs, Text areas, and Select boxes */
     input, textarea, select {
         color: #FFFFFF !important;
         background-color: #1E1E1E !important;
     }
-    
-    /* Streamlit widget labels */
     label, div[data-testid="stMarkdownContainer"] p {
         color: #FFFFFF !important;
     }
-    
-    /* Input box focus highlight border */
     textarea:focus, input:focus {
         border-color: #4CAF50 !important;
     }
@@ -48,7 +41,7 @@ PAID_CLIENTS = {
     "miko_vip": "MIKO Test User"
 }
 
-# Session State for Authentication
+# Session State Initialization
 if "user_role" not in st.session_state:
     st.session_state.user_role = None
 if "logged_in_name" not in st.session_state:
@@ -100,11 +93,18 @@ st.title("🎬 MIKO YT Clipper")
 st.success(f"⭐ Active Workspace — User: `{st.session_state.logged_in_name}`")
 st.write("Extract and clip YouTube videos with per-link timestamps.")
 
-# Guide info box
-st.info("💡 **Format for per-link timestamps:**\n`URL | START_TIME | END_TIME` (Example: `https://www.youtube.com/watch?v=dQw4w9WgXcQ | 00:00:10 | 00:00:25`)")
+st.info("💡 **Format per line:** `URL | START_TIME | END_TIME` (Example: `https://www.youtube.com/watch?v=dQw4w9WgXcQ | 00:00:10 | 00:00:25`)")
 
-# Clean text input without pre-filled placeholders
-raw_input = st.text_area("Paste YouTube Links (One per line):")
+raw_input = st.text_area("Paste YouTube Links (Max 10 links):", height=150)
+
+col1, col2 = st.columns(2)
+with col1:
+    resolution = st.selectbox(
+        "Select Resolution / Format:",
+        ["720p (Fast & Stable)", "1080p (Best Quality)", "Audio Only (MP3)"]
+    )
+with col2:
+    naming_template = st.text_input("Naming Template (Optional):", placeholder="[Track Name] - [Artist]")
 
 # Helper function to convert time formats (HH:MM:SS, MM:SS, SS) to seconds
 def parse_time_to_seconds(time_str):
@@ -127,6 +127,8 @@ if st.button("Process & Generate Video Downloads"):
     
     if not lines:
         st.warning("The input box is empty. Please paste at least one YouTube link.")
+    elif len(lines) > 10:
+        st.error(f"⚠️ Limit Exceeded: You submitted {len(lines)} links. The maximum allowed per batch is 10.")
     else:
         st.divider()
         st.subheader("📥 Processed Downloads")
@@ -142,13 +144,22 @@ if st.button("Process & Generate Video Downloads"):
             
             st.markdown(f"### Video {idx}: `{url}`")
             if start_str or end_str:
-                st.caption(f"⏱️ Trimming: `{start_str or '00:00:00'}` ➔ `{end_str or 'End'}`")
+                st.caption(f"⏱️ Trimming: `{start_str or '00:00:00'}` ➔ `{end_str or 'End'}` | Quality: `{resolution}`")
             
-            output_filename = f"miko_clip_{idx}.mp4"
+            is_audio = "Audio" in resolution
+            ext = "mp3" if is_audio else "mp4"
+            output_filename = f"miko_clip_{idx}.{ext}"
             
-            # Stable cloud format options
+            # Format selection based on UI choice
+            if is_audio:
+                format_opt = 'bestaudio/best'
+            elif "1080p" in resolution:
+                format_opt = 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+            else:
+                format_opt = 'best[ext=mp4]/best'
+
             ydl_opts = {
-                'format': 'best[ext=mp4]/best',
+                'format': format_opt,
                 'outtmpl': output_filename,
                 'overwrites': True,
                 'quiet': True,
@@ -159,7 +170,7 @@ if st.button("Process & Generate Video Downloads"):
                 ydl_opts['download_ranges'] = yt_dlp.utils.download_range_func(None, [(start_sec, end_sec)])
                 ydl_opts['force_keyframes_at_cuts'] = True
 
-            with st.spinner(f"Downloading video {idx}..."):
+            with st.spinner(f"Processing video {idx}..."):
                 try:
                     if os.path.exists(output_filename):
                         os.remove(output_filename)
@@ -168,17 +179,22 @@ if st.button("Process & Generate Video Downloads"):
                         ydl.download([url])
                     
                     if os.path.exists(output_filename):
-                        st.video(output_filename)
+                        if not is_audio:
+                            st.video(output_filename)
+                        else:
+                            st.audio(output_filename)
+                        
+                        file_title = f"{naming_template}_{idx}.{ext}" if naming_template else f"miko_clip_{idx}.{ext}"
                         
                         with open(output_filename, "rb") as file:
                             st.download_button(
                                 label=f"📥 Download Clip #{idx}",
                                 data=file,
-                                file_name=f"miko_yt_clip_{idx}.mp4",
-                                mime="video/mp4",
+                                file_name=file_title,
+                                mime=f"audio/{ext}" if is_audio else f"video/{ext}",
                                 key=f"dl_{idx}"
                             )
-                        st.success(f"Video #{idx} ready!")
+                        st.success(f"Video #{idx} ready for download!")
                     else:
                         st.error(f"Failed to generate clip file for Video #{idx}.")
                         
