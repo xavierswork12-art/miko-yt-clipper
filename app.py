@@ -101,7 +101,7 @@ col1, col2 = st.columns(2)
 with col1:
     resolution = st.selectbox(
         "Select Resolution / Format:",
-        ["720p (Fast & Stable)", "1080p (Best Quality)", "Audio Only (MP3)"]
+        ["Best Video Quality (MP4)", "Audio Only (MP3)"]
     )
 with col2:
     naming_template = st.text_input("Naming Template (Optional):", placeholder="[Track Name] - [Artist]")
@@ -144,28 +144,37 @@ if st.button("Process & Generate Video Downloads"):
             
             st.markdown(f"### Video {idx}: `{url}`")
             if start_str or end_str:
-                st.caption(f"⏱️ Trimming: `{start_str or '00:00:00'}` ➔ `{end_str or 'End'}` | Quality: `{resolution}`")
+                st.caption(f"⏱️ Trimming: `{start_str or '00:00:00'}` ➔ `{end_str or 'End'}` | Format: `{resolution}`")
             
             is_audio = "Audio" in resolution
             ext = "mp3" if is_audio else "mp4"
             output_filename = f"miko_clip_{idx}.{ext}"
             
-            # Format selection based on UI choice
+            # Universal yt-dlp format options that avoid missing format errors
             if is_audio:
-                format_opt = 'bestaudio/best'
-            elif "1080p" in resolution:
-                format_opt = 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+                ydl_opts = {
+                    'format': 'bestaudio/best',
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': '192',
+                    }],
+                    'outtmpl': f"miko_clip_{idx}",
+                    'overwrites': True,
+                    'quiet': True,
+                    'no_warnings': True,
+                }
             else:
-                format_opt = 'best[ext=mp4]/best'
-
-            ydl_opts = {
-                'format': format_opt,
-                'outtmpl': output_filename,
-                'overwrites': True,
-                'quiet': True,
-                'no_warnings': True,
-            }
+                ydl_opts = {
+                    'format': 'bestvideo+bestaudio/best',
+                    'merge_output_format': 'mp4',
+                    'outtmpl': output_filename,
+                    'overwrites': True,
+                    'quiet': True,
+                    'no_warnings': True,
+                }
             
+            # Add range clipping if timestamps exist
             if start_sec is not None and end_sec is not None:
                 ydl_opts['download_ranges'] = yt_dlp.utils.download_range_func(None, [(start_sec, end_sec)])
                 ydl_opts['force_keyframes_at_cuts'] = True
