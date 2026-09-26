@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Egyptian Word Connect</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #111;
+      color: #fff;
+    }
+    
+    /* App Container (Mobile Aspect Ratio Lock) */
+    #app {
+      width: 100vw;
+      height: 100vh;
+      max-width: 480px;
+      margin: 0 auto;
+      position: relative;
+      background: linear-gradient(180deg, #3d2206 0%, #a26c27 50%, #d49f47 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      box-shadow: 0 0 20px rgba(0,0,0,0.8);
+    }
+
+    /* Egyptian Pyramids Visual Background */
+    .bg-graphics {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.25;
+    }
+    .pyramid {
+      position: absolute;
+      bottom: 25%;
+      border-left: 120px solid transparent;
+      border-right: 120px solid transparent;
+      border-bottom: 180px solid #5a380e;
+    }
+    .pyramid.left { left: -40px; transform: scale(0.8); }
+    .pyramid.right { right: -50px; transform: scale(1.1); }
+
+    /* Top Bar Header */
+    header {
+      position: relative;
+      z-index: 10;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.3);
+      border-bottom: 2px solid #d4af37;
+    }
+    .player-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .level-badge {
+      background: #d4af37;
+      color: #1a0f02;
+      font-weight: bold;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 14px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    }
+    .currency-display {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 4px 12px;
+      border-radius: 16px;
+      border: 1px solid #d4af37;
+      color: #ffd700;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    .icon-btn {
+      background: linear-gradient(180deg, #d4af37 0%, #aa7c11 100%);
+      border: none;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      box-shadow: 0 3px 0 #5c4309, 0 4px 6px rgba(0,0,0,0.4);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .icon-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #5c4309;
+    }
+
+    /* Board Area */
+    #board-container {
+      position: relative;
+      z-index: 5;
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    #grid {
+      display: grid;
+      gap: 8px;
+      justify-content: center;
+      align-content: center;
+    }
+    .tile {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 20px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2), 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .tile.empty {
+      visibility: hidden;
+    }
+    .tile.unsolved {
+      background: #f4e8c1;
+      color: transparent;
+      border: 2px solid #c2a661;
+    }
+    .tile.solved {
+      background: #1e5e3a;
+      color: #ffffff;
+      border: 2px solid #288351;
+      animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    /* Word Trail Preview */
+    #word-preview {
+      position: relative;
+      z-index: 10;
+      height: 30px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #fff;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+      margin-bottom: 10px;
+    }
+
+    /* Wheel Input Canvas Area */
+    #wheel-container {
+      position: relative;
+      z-index: 10;
+      height: 280px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    #wheel-canvas {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 260px;
+      height: 260px;
+      z-index: 12;
+      touch-action: none;
+    }
+    .wheel-bg {
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: rgba(20, 10, 2, 0.6);
+      border: 4px solid #d4af37;
+      position: absolute;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
+    }
+    .shuffle-btn {
+      position: absolute;
+      z-index: 15;
+      width: 46px;
+      height: 46px;
+      background: linear-gradient(180deg, #d4af37 0%, #8c630d 100%);
+      border: 2px solid #fff;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.5);
+    }
+    .hint-btn {
+      position: absolute;
+      right: 25px;
+      bottom: 20px;
+      z-index: 15;
+    }
+
+    /* Modal Screens */
+    .modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      z-index: 100;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal.active {
+      display: flex;
+    }
+    .modal-content {
+      width: 85%;
+      background: linear-gradient(180deg, #2c1a08 0%, #170d03 100%);
+      border: 3px solid #d4af37;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #d4af37;
+      padding-bottom: 10px;
+    }
+    .modal-title {
+      color: #ffd700;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .setting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 16px;
+    }
+    .toggle-btn {
+      background: #333;
+      color: #fff;
+      border: 1px solid #d4af37;
+      padding: 6px 16px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    .toggle-btn.on {
+      background: #1e5e3a;
+    }
+    .action-btn {
+      background: linear-gradient(180deg, #d4af37 0%, #aa7c11 100%);
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      color: #fff;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      text-align: center;
+      box-shadow: 0 3px 0 #5c4309;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app">
+    <div class="bg-graphics">
+      <div class="pyramid left"></div>
+      <div class="pyramid right"></div>
+    </div>
+
+    <!-- Header Section -->
+    <header>
+      <div class="player-info">
+        <div class="level-badge" id="level-display">LEVEL 1</div>
+        <div class="currency-display">
+          <span>💎</span>
+          <span id="gems-display">100</span>
+        </div>
+      </div>
+      <button class="icon-btn" id="settings-open-btn">⚙️</button>
+    </header>
+
+    <!-- Main Game Board -->
+    <div id="board-container">
+      <div id="grid"></div>
+    </div>
+
+    <!-- Selected Word Live Display -->
+    <div id="word-preview"></div>
+
+    <!-- Letter Wheel Controls -->
+    <div id="wheel-container">
+      <div class="wheel-bg"></div>
+      <button class="shuffle-btn" id="shuffle-btn">🔄</button>
+      <button class="icon-btn hint-btn" id="hint-btn">💡</button>
+      <canvas id="wheel-canvas" width="260" height="260"></canvas>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settings-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span class="modal-title">SETTINGS</span>
+          <button class="icon-btn" id="settings-close-btn" style="width: 30px; height: 30px;">✕</button>
+        </div>
+        <div class="setting-row">
+          <span>Music</span>
+          <button class="toggle-btn on" id="music-toggle">ON</button>
+        </div>
+        <div class="setting-row">
+          <span>Sound Effects</span>
+          <button class="toggle-btn on" id="sfx-toggle">ON</button>
+        </div>
+        <button class="action-btn" id="save-btn">Save Progress</button>
+      </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div class="modal" id="victory-modal">
+      <div class="modal-content" style="text-align: center;">
+        <h2 class="modal-title" style="font-size: 26px;">EXCELLENT!</h2>
+        <p>Location Cleared!</p>
+        <p style="color: #ffd700; font-size: 18px;">+25 Gems</p>
+        <button class="action-btn" id="next-level-btn">Next Level ➔</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- AUDIO MANAGER (Web Audio API Synthesizer) ---
+    class SoundManager {
+      constructor() {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.sfxOn = true;
+        this.musicOn = true;
+      }
+
+      playSelect() {
+        if (!this.sfxOn) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }
+
+      playCorrect() {
+        if (!this.sfxOn) return;
+        const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.08);
+          gain.gain.setValueAtTime(0.15, this.ctx.currentTime + idx * 0.08);
+          gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.08 + 0.15);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(this.ctx.currentTime + idx * 0.08);
+          osc.stop(this.ctx.currentTime + idx * 0.08 + 0.15);
+        });
+      }
+
+      playWrong() {
+        if (!this.sfxOn) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(110, this.ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.2);
+      }
+    }
+
+    const sound = new SoundManager();
+
+    // --- GAME DATA & STATE ---
+    const levels = [
+      {
+        level: 1,
+        letters: ['C', 'A', 'T'],
+        gridSize: { rows: 3, cols: 3 },
+        words: [
+          { word: 'CAT', row: 1, col: 0, dir: 'H' },
+          { word: 'ACT', row: 0, col: 1, dir: 'V' }
+        ]
+      },
+      {
+        level: 2,
+        letters: ['S', 'U', 'N', 'S'],
+        gridSize: { rows: 4, cols: 4 },
+        words: [
+          { word: 'SUN', row: 1, col: 0, dir: 'H' },
+          { word: 'SUNS', row: 0, col: 1, dir: 'V' }
+        ]
+      }
+    ];
+
+    let currentLevelIdx = 0;
+    let currentGems = 100;
+    let solvedWords = [];
+    let selectedIndices = [];
+    let isSwiping = false;
+    let touchPos = { x: 0, y: 0 };
+    let letterNodes = [];
+
+    // --- DOM ELEMENTS ---
+    const gridEl = document.getElementById('grid');
+    const previewEl = document.getElementById('word-preview');
+    const canvas = document.getElementById('wheel-canvas');
+    const ctx = canvas.getContext('2d');
+    const levelDisplay = document.getElementById('level-display');
+    const gemsDisplay = document.getElementById('gems-display');
+
+    // --- BOARD RENDER ENGINE ---
+    function loadLevel(idx) {
+      const level = levels[idx];
+      currentLevelIdx = idx;
+      solvedWords = [];
+      selectedIndices = [];
+      previewEl.textContent = '';
+      levelDisplay.textContent = `LEVEL ${level.level}`;
+      
+      // Generate Grid Matrix
+      gridEl.style.gridTemplateRows = `repeat(${level.gridSize.rows}, 44px)`;
+      gridEl.style.gridTemplateColumns = `repeat(${level.gridSize.cols}, 44px)`;
+      gridEl.innerHTML = '';
+
+      const matrix = Array(level.gridSize.rows).fill(null).map(() => Array(level.gridSize.cols).fill(null));
+
+      level.words.forEach(w => {
+        for (let i = 0; i < w.word.length; i++) {
+          const r = w.dir === 'V' ? w.row + i : w.row;
+          const c = w.dir === 'H' ? w.col + i : w.col;
+          matrix[r][c] = { letter: w.word[i], word: w.word };
+        }
+      });
+
+      for (let r = 0; r < level.gridSize.rows; r++) {
+        for (let c = 0; c < level.gridSize.cols; c++) {
+          const tile = document.createElement('div');
+          tile.classList.add('tile');
+          if (matrix[r][c]) {
+            tile.classList.add('unsolved');
+            tile.dataset.row = r;
+            tile.dataset.col = c;
+            tile.dataset.letter = matrix[r][c].letter;
+          } else {
+            tile.classList.add('empty');
+          }
+          gridEl.appendChild(tile);
+        }
+      }
+
+      setupWheel(level.letters);
+    }
+
+    // --- WHEEL & TOUCH CONTROLLER ---
+    function setupWheel(letters) {
+      letterNodes = [];
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      const radius = 80;
+      const angleStep = (2 * Math.PI) / letters.length;
+
+      letters.forEach((char, i) => {
+        const angle = i * angleStep - Math.PI / 2;
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
+        letterNodes.push({ char, x, y, index: i });
+      });
+
+      drawWheel();
+    }
+
+    function drawWheel() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw Selected Connecting Lines
+      if (selectedIndices.length > 0) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        selectedIndices.forEach((idx, i) => {
+          const node = letterNodes[idx];
+          if (i === 0) ctx.moveTo(node.x, node.y);
+          else ctx.lineTo(node.x, node.y);
+        });
+
+        if (isSwiping) {
+          ctx.lineTo(touchPos.x, touchPos.y);
+        }
+        ctx.stroke();
+      }
+
+      // Draw Letter Nodes
+      letterNodes.forEach((node, i) => {
+        const isSelected = selectedIndices.includes(i);
+        
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, 25, 0, Math.PI * 2);
+        ctx.fillStyle = isSelected ? '#1e5e3a' : '#d4af37';
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ffffff';
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(node.char, node.x, node.y);
+      });
+    }
+
+    // Input Handling
+    function getCanvasCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
+
+    function handleStart(e) {
+      sound.ctx.resume();
+      isSwiping = true;
+      const pos = getCanvasCoords(e);
+      touchPos = pos;
+      checkNodeHit(pos);
+    }
+
+    function handleMove(e) {
+      if (!isSwiping) return;
+      const pos = getCanvasCoords(e);
+      touchPos = pos;
+      checkNodeHit(pos);
+      drawWheel();
+    }
+
+    function handleEnd() {
+      if (!isSwiping) return;
+      isSwiping = false;
+      submitWord();
+      selectedIndices = [];
+      drawWheel();
+    }
+
+    function checkNodeHit(pos) {
+      letterNodes.forEach(node => {
+        const dist = Math.hypot(node.x - pos.x, node.y - pos.y);
+        if (dist < 25 && !selectedIndices.includes(node.index)) {
+          selectedIndices.push(node.index);
+          sound.playSelect();
+          updatePreview();
+        }
+      });
+    }
+
+    function updatePreview() {
+      const word = selectedIndices.map(i => letterNodes[i].char).join('');
+      previewEl.textContent = word;
+    }
+
+    function submitWord() {
+      const formedWord = previewEl.textContent;
+      const level = levels[currentLevelIdx];
+      const matched = level.words.find(w => w.word === formedWord);
+
+      if (matched && !solvedWords.includes(formedWord)) {
+        sound.playCorrect();
+        solvedWords.push(formedWord);
+        revealWord(matched);
+        
+        if (solvedWords.length === level.words.length) {
+          setTimeout(() => {
+            document.getElementById('victory-modal').classList.add('active');
+            currentGems += 25;
+            gemsDisplay.textContent = currentGems;
+          }, 500);
+        }
+      } else if (formedWord.length > 0) {
+        sound.playWrong();
+      }
+      previewEl.textContent = '';
+    }
+
+    function revealWord(wordObj) {
+      const level = levels[currentLevelIdx];
+      for (let i = 0; i < wordObj.word.length; i++) {
+        const r = wordObj.dir === 'V' ? wordObj.row + i : wordObj.row;
+        const c = wordObj.dir === 'H' ? wordObj.col + i : wordObj.col;
+        
+        const tiles = document.querySelectorAll('.tile.unsolved');
+        tiles.forEach(t => {
+          if (parseInt(t.dataset.row) === r && parseInt(t.dataset.col) === c) {
+            t.classList.remove('unsolved');
+            t.classList.add('solved');
+            t.textContent = wordObj.word[i];
+          }
+        });
+      }
+    }
+
+    // --- LISTENERS & MODALS ---
+    canvas.addEventListener('mousedown', handleStart);
+    canvas.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+
+    canvas.addEventListener('touchstart', handleStart);
+    canvas.addEventListener('touchmove', handleMove);
+    window.addEventListener('touchend', handleEnd);
+
+    document.getElementById('shuffle-btn').addEventListener('click', () => {
+      sound.playSelect();
+      const currentLetters = levels[currentLevelIdx].letters;
+      const shuffled = [...currentLetters].sort(() => Math.random() - 0.5);
+      setupWheel(shuffled);
+    });
+
+    document.getElementById('hint-btn').addEventListener('click', () => {
+      if (currentGems < 10) return;
+      currentGems -= 10;
+      gemsDisplay.textContent = currentGems;
+      
+      // Auto solve first unsolved word character
+      const unsolvedTile = document.querySelector('.tile.unsolved');
+      if (unsolvedTile) {
+        sound.playSelect();
+        unsolvedTile.classList.remove('unsolved');
+        unsolvedTile.classList.add('solved');
+        unsolvedTile.textContent = unsolvedTile.dataset.letter;
+      }
+    });
+
+    document.getElementById('settings-open-btn').addEventListener('click', () => {
+      document.getElementById('settings-modal').classList.add('active');
+    });
+
+    document.getElementById('settings-close-btn').addEventListener('click', () => {
+      document.getElementById('settings-modal').classList.remove('active');
+    });
+
+    document.getElementById('sfx-toggle').addEventListener('click', (e) => {
+      sound.sfxOn = !sound.sfxOn;
+      e.target.textContent = sound.sfxOn ? 'ON' : 'OFF';
+      e.target.classList.toggle('on', sound.sfxOn);
+    });
+
+    document.getElementById('music-toggle').addEventListener('click', (e) => {
+      sound.musicOn = !sound.musicOn;
+      e.target.textContent = sound.musicOn ? 'ON' : 'OFF';
+      e.target.classList.toggle('on', sound.musicOn);
+    });
+
+    document.getElementById('next-level-btn').addEventListener('click', () => {
+      document.getElementById('victory-modal').classList.remove('active');
+      const nextIdx = (currentLevelIdx + 1) % levels.length;
+      loadLevel(nextIdx);
+    });
+
+    // Initialize Game
+    loadLevel(0);
+  </script>
+</body>
+</html>
